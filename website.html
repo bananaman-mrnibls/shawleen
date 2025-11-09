@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Cart Demo</title>
+  <style>
+    :root{--bg:#f6f8fb;--card:#fff;--accent:#0b74de;--muted:#6b7280}
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial; margin:0; background:var(--bg); color:#111}
+    header{background:linear-gradient(90deg,#0b74de 0%,#0368c6 100%); color:#fff; padding:18px 24px; display:flex; align-items:center; justify-content:space-between}
+    .brand{font-weight:700; font-size:18px}
+    .container{max-width:1080px;margin:24px auto;padding:0 16px;display:grid;grid-template-columns:1fr 320px;gap:20px}
+    .products{display:grid;grid-template-columns:repeat(auto-fill, minmax(220px,1fr));gap:16px}
+    .card{background:var(--card);border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(11,20,40,0.06);display:flex;flex-direction:column}
+    .card img{width:100%;height:140px;object-fit:cover;border-radius:8px}
+    .card h4{margin:10px 0 6px;font-size:16px}
+    .price{font-weight:700}
+    button{background:var(--accent);color:#fff;border:0;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .cart{background:var(--card);border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(11,20,40,0.06)}
+    .cart h3{margin:0 0 12px}
+    .cart-list{max-height:380px;overflow:auto;margin-bottom:12px}
+    .cart-item{display:flex;gap:10px;align-items:center;padding:8px;border-radius:8px}
+    .cart-item img{width:56px;height:56px;border-radius:6px;object-fit:cover}
+    .cart-item .meta{flex:1}
+    .qty{display:flex;gap:6px;align-items:center}
+    .muted{color:var(--muted);font-size:13px}
+    .btn-ghost{background:transparent;border:1px solid #eee;color:var(--accent);padding:6px 8px;border-radius:8px}
+    footer.note{max-width:1080px;margin:18px auto;padding:12px 16px;color:var(--muted);font-size:13px}
+    @media (max-width:900px){.container{grid-template-columns:1fr}.cart{order:2}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">Simple Shop — Demo Cart</div>
+    <div class="header-actions">
+      <span class="muted">Static HTML + localStorage</span>
+    </div>
+  </header>
+
+  <main class="container">
+    <section>
+      <h2 style="margin-top:0">Products</h2>
+      <div class="products" id="products"></div>
+    </section>
+
+    <aside class="cart" aria-labelledby="cart-heading">
+      <h3 id="cart-heading">Your Cart <span id="cart-count" class="muted">(0)</span></h3>
+      <div class="cart-list" id="cart-list">
+        <!-- cart items go here -->
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div class="muted">Total</div>
+          <div id="cart-total" style="font-weight:700;font-size:18px">$0.00</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button id="checkout">Checkout</button>
+          <button id="clear" class="btn-ghost">Clear Cart</button>
+        </div>
+      </div>
+      <details style="margin-top:12px">
+        <summary class="muted">Debug / export</summary>
+        <div style="margin-top:8px">
+          <button id="export" class="btn-ghost">Export cart JSON</button>
+          <pre id="export-data" style="white-space:pre-wrap;margin-top:8px;max-height:180px;overflow:auto;background:#f3f4f6;padding:8px;border-radius:6px"></pre>
+        </div>
+      </details>
+    </aside>
+  </main>
+
+  <footer class="note">Upload this single file as <strong>index.html</strong> to a GitHub repo and enable GitHub Pages (branch: main, folder: /) to publish it. Cart uses localStorage, so each visitor keeps their own items in their browser.</footer>
+
+  <script>
+    // Sample product data — you can add or edit items here before uploading
+    const PRODUCTS = [
+      {id: 'p1', title: 'Classic Sneakers', price: 59.99, img: 'https://picsum.photos/seed/sneakers/600/400', desc: 'Comfortable everyday sneakers.'},
+      {id: 'p2', title: 'Canvas Backpack', price: 39.5, img: 'https://picsum.photos/seed/backpack/600/400', desc: 'Durable with roomy compartments.'},
+      {id: 'p3', title: 'Wireless Headphones', price: 89.0, img: 'https://picsum.photos/seed/headphones/600/400', desc: 'Long battery life and clear sound.'},
+      {id: 'p4', title: 'Stainless Bottle', price: 19.99, img: 'https://picsum.photos/seed/bottle/600/400', desc: 'Keeps drinks cold for hours.'}
+    ];
+
+    // utils
+    const $ = id => document.getElementById(id);
+    const format = v => '$' + v.toFixed(2);
+
+    // cart management (stored in localStorage)
+    const CART_KEY = 'simple_cart_demo_v1';
+    function loadCart(){
+      try{
+        return JSON.parse(localStorage.getItem(CART_KEY) || '{}');
+      }catch(e){return {}}
+    }
+    function saveCart(cart){
+      localStorage.setItem(CART_KEY, JSON.stringify(cart));
+    }
+
+    // render products
+    function renderProducts(){
+      const container = $('products');
+      container.innerHTML = '';
+      PRODUCTS.forEach(p => {
+        const card = document.createElement('div'); card.className='card';
+        card.innerHTML = `
+          <img src="${p.img}" alt="${p.title}" loading="lazy">
+          <h4>${p.title}</h4>
+          <div class="muted">${p.desc}</div>
+          <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+            <div class="price">${format(p.price)}</div>
+            <button data-id="${p.id}">Add</button>
+          </div>
+        `;
+        card.querySelector('button').addEventListener('click', ()=>{ addToCart(p.id); });
+        container.appendChild(card);
+      });
+    }
+
+    // cart UI
+    function getCartItemsArray(cart){
+      return Object.keys(cart).map(id => ({...cart[id]}));
+    }
+
+    function renderCart(){
+      const cart = loadCart();
+      const list = $('cart-list'); list.innerHTML = '';
+      const items = getCartItemsArray(cart);
+      let total = 0; let count = 0;
+      if(items.length===0){ list.innerHTML = '<div class="muted">Cart is empty — add something from the left.</div>'; }
+      items.forEach(item=>{
+        total += item.price * item.qty; count += item.qty;
+        const row = document.createElement('div'); row.className='cart-item';
+        row.innerHTML = `
+          <img src="${item.img}" alt="${item.title}">
+          <div class="meta">
+            <div style="display:flex;justify-content:space-between;align-items:center"><div>${item.title}</div><div class="muted">${format(item.price)}</div></div>
+            <div class="qty" style="margin-top:8px">
+              <button class="btn-ghost" data-action="dec" data-id="${item.id}">-</button>
+              <div class="muted">Qty: <strong style="color:#111">${item.qty}</strong></div>
+              <button class="btn-ghost" data-action="inc" data-id="${item.id}">+</button>
+              <button class="btn-ghost" data-action="remove" data-id="${item.id}" style="margin-left:8px">Remove</button>
+            </div>
+          </div>
+        `;
+        row.querySelectorAll('button').forEach(b=>{ b.addEventListener('click', onCartButton); });
+        list.appendChild(row);
+      });
+
+      $('cart-total').textContent = format(total);
+      $('cart-count').textContent = `(${count})`;
+    }
+
+    function onCartButton(e){
+      const action = e.currentTarget.getAttribute('data-action');
+      const id = e.currentTarget.getAttribute('data-id');
+      const cart = loadCart();
+      if(!cart[id]) return;
+      if(action==='inc'){ cart[id].qty += 1; }
+      else if(action==='dec'){ cart[id].qty = Math.max(1, cart[id].qty -1); }
+      else if(action==='remove'){ delete cart[id]; }
+      saveCart(cart); renderCart();
+    }
+
+    // add item
+    function addToCart(id){
+      const product = PRODUCTS.find(p=>p.id===id); if(!product) return;
+      const cart = loadCart();
+      if(cart[id]) cart[id].qty += 1;
+      else cart[id] = { id:product.id, title:product.title, price:product.price, img:product.img, qty:1 };
+      saveCart(cart); renderCart();
+    }
+
+    // actions
+    document.getElementById('clear').addEventListener('click', ()=>{ localStorage.removeItem(CART_KEY); renderCart(); });
+    document.getElementById('export').addEventListener('click', ()=>{ const data = localStorage.getItem(CART_KEY) || '{}'; $('export-data').textContent = data; });
+    document.getElementById('checkout').addEventListener('click', ()=>{
+      const cart = loadCart(); const items = getCartItemsArray(cart);
+      if(items.length===0){ alert('Cart is empty'); return; }
+      // this demo doesn't integrate payments. We'll simulate a checkout.
+      const total = items.reduce((s,i)=>s + i.price * i.qty,0);
+      const summary = items.map(i=>`${i.qty} x ${i.title} — ${format(i.price * i.qty)}`).join('\n');
+      const confirmed = confirm(`Checkout summary:\n\n${summary}\n\nTotal: ${format(total)}\n\nPress OK to simulate order placement.`);
+      if(confirmed){ localStorage.removeItem(CART_KEY); renderCart(); alert('Order placed (simulated). Thank you!'); }
+    });
+
+    // initial load
+    renderProducts(); renderCart();
+
+    // convenience: allow adding via ?add=p1 in URL (handy for demos)
+    (function(){
+      const params = new URLSearchParams(location.search);
+      if(params.has('add')){ addToCart(params.get('add')); history.replaceState(null,'',location.pathname); }
+    })();
+  </script>
+</body>
+</html>
